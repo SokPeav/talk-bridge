@@ -1,8 +1,8 @@
 import { sendWelcomeEmail } from "../email/emailHandlers.js";
+import { ENV } from "../lib/env.js";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
-import "dotenv/config"
 
 export const signup = async (req, res) => {
   const { name, email, password } = req.body;
@@ -39,11 +39,10 @@ export const signup = async (req, res) => {
         profilePic: newUser.profilePic,
       });
 
-
       try {
-        await sendWelcomeEmail(saveUser.email,saveUser.name,process.env.CLIENT_URL)
+        await sendWelcomeEmail(saveUser.email, saveUser.name, ENV.CLIENT_URL);
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     } else {
       res.status(400).json({ message: "Invalid User" });
@@ -52,4 +51,38 @@ export const signup = async (req, res) => {
     console.log(error);
     res.status(500).json({ message: "Internal Server 500" });
   }
+};
+
+export const signin = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    if (!email || !password) {
+      res.status(400).json({ message: "All field are required" });
+    }
+
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      res.status(400).json({ message: "Invalid Credential" });
+    }
+
+    const isCorrectPassword = await bcrypt.compare(password, user.password);
+    if (!isCorrectPassword) {
+      res.status(400).json({ message: "Invalid Credential" });
+    }
+    generateToken(user._id, res);
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      profilePic: user.profilePic,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal Server 500" });
+  }
+};
+
+export const signout = (_, res) => {
+  res.cookie("jwt", "", { maxAge: 0 });
+  res.status(200).json({ message: "Logout successfully" });
 };
