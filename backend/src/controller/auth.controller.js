@@ -3,6 +3,7 @@ import { ENV } from "../lib/env.js";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
+import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
   const { name, email, password } = req.body;
@@ -85,4 +86,28 @@ export const signin = async (req, res) => {
 export const signout = (_, res) => {
   res.cookie("jwt", "", { maxAge: 0 });
   res.status(200).json({ message: "Logout successfully" });
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { profilePic } = req.body;
+    if (!profilePic)
+      res.status(400).json({ message: "Profile Picture is required" });
+
+    const userId = req.user_id;
+
+    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+
+    const response = await User.findByIdAndUpdate(
+      userId,
+      {
+        profilePic: uploadResponse.secure_url,
+      },
+      { new: true },
+    );
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server 500" });
+  }
 };
